@@ -15,12 +15,16 @@ type panel struct {
 	name  string
 	view  string
 	state sessionState
+	width float64
 }
 
 type TuiModel struct {
+	// State
 	state      sessionState
 	quitting   bool
 	suspending bool
+	width      int
+	height     int
 
 	// Views
 	spinner   spinner.Model
@@ -33,13 +37,11 @@ const (
 )
 
 var (
-	modelStyle = lipgloss.NewStyle().
-			Width(50).
+	baseModelStyle = lipgloss.NewStyle().
 			Height(5).
 			Align(lipgloss.Center, lipgloss.Center).
 			BorderStyle(lipgloss.HiddenBorder())
-	focusedModelStyle = lipgloss.NewStyle().
-				Width(50).
+	baseFocusedModelStyle = lipgloss.NewStyle().
 				Height(5).
 				Align(lipgloss.Center, lipgloss.Center).
 				BorderStyle(lipgloss.NormalBorder()).
@@ -64,8 +66,11 @@ func NewTuiModel() TuiModel {
 func (m TuiModel) Init() tea.Cmd {
 	var cmd tea.Cmd
 
-	cmd = tea.EnterAltScreen
-	cmd = tea.Batch(m.processes.Tick, m.spinner.Tick)
+	cmd = tea.Batch(
+		tea.EnterAltScreen,
+		m.processes.Tick,
+		m.spinner.Tick,
+	)
 
 	return cmd
 }
@@ -110,6 +115,10 @@ func (m TuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case processes.TickMsg:
 		m.processes, cmd = m.processes.Update(msg)
 		cmds = append(cmds, cmd)
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	}
 	return m, tea.Batch(cmds...)
 }
@@ -125,17 +134,18 @@ func (m TuiModel) View() string {
 	}
 
 	panels := []panel{
-		{"processes", m.processes.View(), processesView},
-		{"spinner", m.spinner.View(), spinnerView},
+		{"spinner", m.spinner.View(), spinnerView, 0.5},
+		{"processes", m.processes.View(), processesView, 0.5},
 		// later you can just add new ones here
 		// {"logs", m.logs.View(), logsView},
 	}
 
 	var rendered []string
 	for _, p := range panels {
-		style := modelStyle
+		width := int(float64(m.width) * p.width)
+		style := baseModelStyle.Width(width)
 		if m.state == p.state {
-			style = focusedModelStyle
+			style = baseFocusedModelStyle.Width(width)
 		}
 		rendered = append(rendered, style.Render(fmt.Sprintf("%4s", p.view)))
 	}
