@@ -3,10 +3,10 @@ package tui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mahauni/memrvisualz/internal/tui/models/processes"
+	"github.com/mahauni/memrvisualz/internal/tui/models/ram"
 )
 
 type sessionState uint
@@ -27,13 +27,13 @@ type TuiModel struct {
 	height     int
 
 	// Views
-	spinner   spinner.Model
+	ram       ram.Model
 	processes processes.Model
 }
 
 const (
 	processesView sessionState = iota
-	spinnerView
+	ramView
 )
 
 var (
@@ -57,7 +57,7 @@ func NewTuiModel() TuiModel {
 		suspending: false,
 	}
 
-	m.spinner = spinner.New()
+	m.ram = ram.New()
 	m.processes = processes.New()
 
 	return m
@@ -68,8 +68,8 @@ func (m TuiModel) Init() tea.Cmd {
 
 	cmd = tea.Batch(
 		tea.EnterAltScreen,
+		m.ram.Tick,
 		m.processes.Tick,
-		m.spinner.Tick,
 	)
 
 	return cmd
@@ -90,11 +90,10 @@ func (m TuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+z":
 			m.suspending = true
 			return m, tea.Suspend
-
 		// make better way to visualize the tabs
 		case "tab":
 			if m.state == processesView {
-				m.state = spinnerView
+				m.state = ramView
 			} else {
 				m.state = processesView
 			}
@@ -102,24 +101,34 @@ func (m TuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch m.state {
 		// update whichever model is focused
-		case spinnerView:
-			m.spinner, cmd = m.spinner.Update(msg)
+		case ramView:
+			m.ram, cmd = m.ram.Update(msg)
 			cmds = append(cmds, cmd)
 		case processesView:
 			m.processes, cmd = m.processes.Update(msg)
 			cmds = append(cmds, cmd)
 		}
-	case spinner.TickMsg:
-		m.spinner, cmd = m.spinner.Update(msg)
+
+	case ram.TickMsg:
+		m.ram, cmd = m.ram.Update(msg)
 		cmds = append(cmds, cmd)
+		_, _ = m.processes.Update(msg)
 	case processes.TickMsg:
 		m.processes, cmd = m.processes.Update(msg)
 		cmds = append(cmds, cmd)
+		_, _ = m.ram.Update(msg)
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+
+		// send the resize to the Views
+		m.ram, cmd = m.ram.Update(msg)
+		cmds = append(cmds, cmd)
+		m.processes, cmd = m.processes.Update(msg)
+		cmds = append(cmds, cmd)
 	}
+
 	return m, tea.Batch(cmds...)
 }
 
@@ -134,7 +143,7 @@ func (m TuiModel) View() string {
 	}
 
 	panels := []panel{
-		{"spinner", m.spinner.View(), spinnerView, 0.5},
+		{"ram", m.ram.View(), ramView, 0.5},
 		{"processes", m.processes.View(), processesView, 0.5},
 		// later you can just add new ones here
 		// {"logs", m.logs.View(), logsView},

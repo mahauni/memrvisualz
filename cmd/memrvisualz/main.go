@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	if _, err := tea.NewProgram(tui.NewTuiModel()).Run(); err != nil {
+	if _, err := tea.NewProgram(tui.NewTuiModel(), tea.WithAltScreen(), tea.WithMouseCellMotion()).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
