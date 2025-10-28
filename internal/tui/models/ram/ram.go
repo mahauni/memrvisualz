@@ -1,7 +1,6 @@
 package ram
 
 import (
-	"fmt"
 	"log"
 	"sync/atomic"
 	"time"
@@ -96,8 +95,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// make here the progress shit
-
 		meminfo, err := m.procfs.Meminfo()
 		if err == nil {
 			total := float64(*meminfo.MemTotal)
@@ -106,8 +103,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			cached := float64(*meminfo.Cached)
 			used := total - free - buffers - cached
 			usedPercent := (used / total) * 100.0
-
-			fmt.Println(usedPercent)
 
 			// Add point
 			m.points = append(m.points, tslc.TimePoint{
@@ -153,8 +148,7 @@ func (m Model) ID() int {
 
 func (m Model) Tick() tea.Msg {
 	return TickMsg{
-		ID: m.id,
-
+		ID:  m.id,
 		tag: m.tag,
 	}
 }

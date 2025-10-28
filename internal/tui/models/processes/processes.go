@@ -219,8 +219,7 @@ func (m Model) ID() int {
 
 func (m Model) Tick() tea.Msg {
 	return TickMsg{
-		ID: m.id,
-
+		ID:  m.id,
 		tag: m.tag,
 	}
 }
